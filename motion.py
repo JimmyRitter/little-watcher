@@ -1,5 +1,6 @@
 import os
 import time
+import datetime
 import RPi.GPIO as GPIO
 from picamera2 import Picamera2
 from picamera2.encoders import H264Encoder
@@ -18,7 +19,10 @@ from azure.storage.blob import BlobServiceClient
 
 # Constants
 MOTION_SENSOR_PIN = 37  # GPIO26 when using GPIO.BOARD numbering scheme
-LED_PIN = 13 
+LED_PIN = 13 # Where LED is connected on breadboard
+MOTION_SECONDS_TO_RECORD = 10 # How much seconds of motion should be the limit to start recording (the less, the more sensitive it is)
+
+motion_times = []
 
 # GPIO Setup
 GPIO.setmode(GPIO.BOARD)
@@ -38,6 +42,10 @@ default_credential = AzureCliCredential()
 # # Create the BlobServiceClient object
 blob_service_client = BlobServiceClient(account_url, credential=default_credential)
 
+# prepare folder to upload recorded midias
+midia_path = "./midia"
+if not os.path.exists(midia_path):
+    os.mkdir(midia_path)
 
 def upload_midia(file_name):
     """Save media to azure"""
@@ -60,14 +68,12 @@ def upload_midia(file_name):
 
 # Camera Setup
 def setup_picture():
-    # camera_config = picam2.create_preview_configuration()
-    camera_config = picam2.create_video_configuration(main={"format": 'XRGB8888', "size": (1280, 720), "frame_rate": 15})
-    # picam2.configure(video_config)
+    camera_config = picam2.create_preview_configuration()
     picam2.configure(camera_config)
     picam2.start()
 
 def setup_video():
-    video_config = picam2.create_video_configuration()
+    video_config = picam2.create_video_configuration(main={"format": 'XRGB8888', "size": (1280, 720)})
     picam2.configure(video_config)
 
 def take_picture():
@@ -80,26 +86,38 @@ def take_picture():
     upload_midia(filename)
 
 def record_video():
-    """Records a 5 second video"""
     timestamp = int(time.time())
     encoder = H264Encoder(bitrate=10000000)
     filename = f"video_{timestamp}.h264"
     output = f"./midia/{filename}"
     GPIO.output(LED_PIN, True)
     picam2.start_recording(encoder, output)
-    time.sleep(10)
+    time.sleep(20)
     picam2.stop_recording()
     GPIO.output(LED_PIN, False)
+    print("video recorded")
     # upload_midia(filename)
+
+def should_start_midia_capture():
+    time_limit = datetime.datetime.now() - datetime.timedelta(seconds=MOTION_SECONDS_TO_RECORD)
+    new_list = [times for times in motion_times if times > time_limit]
+    minium_movements_detection = 2
+    return len(new_list) >= minium_movements_detection
 
 def detect_motion(channel):
     """Callback function to detect motion."""
     if GPIO.input(channel):
         print("Motion detected!")
-        # take_picture()
-        record_video()
-    else:
-        print("Motion stopped!")
+
+        # list of when movement was detected, so it decideds if should start recording
+        now = datetime.datetime.now()
+        motion_times.append(now)
+        
+        if should_start_midia_capture():
+            record_video()
+            # take_picture()
+        else:
+            print("not enough movement to start recording")    
 
 def main(): 
     """Main program loop."""
@@ -115,7 +133,7 @@ def main():
 
     try:
         while True:
-            time.sleep(1)  # Keep program running
+            time.sleep(0.1)  # Keep program running
     except RuntimeError as e:
         print(f"Error setting up GPIO: {e}")
     except KeyboardInterrupt:
