@@ -1,9 +1,9 @@
 from azure.eventhub import EventHubConsumerClient
 
 # Replace the following values with your Azure Event Hub settings
-connection_str = 'Endpoint=sb://ihsuprodamres006dednamespace.servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=dmcShPGDRK5aYztBmxfg5BJPVvB063e0fAIoTNFQWQA=;EntityPath=iothub-ehub-azure-glob-58002405-0d456e5e67'
+connection_str = ''
 consumer_group = '$Default'
-eventhub_name = 'iothub-ehub-azure-glob-58002405-0d456e5e67'
+eventhub_name = ''
 
 def on_event(partition_context, event):
     # Print the event data content

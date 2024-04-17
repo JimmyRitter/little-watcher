@@ -45,6 +45,7 @@ default_credential = AzureCliCredential()
 blob_service_client = BlobServiceClient(account_url, credential=default_credential)
 
 # Fetch the connection string from an environment variable
+conn_str = ""
 
 # Create instance of the device client using the authentication provider
 device_client = IoTHubDeviceClient.create_from_connection_string(conn_str)
