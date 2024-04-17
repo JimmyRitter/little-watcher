@@ -6,3 +6,6 @@ needed for `GPIO.add_event_detect`:
 `sudo apt install python3-rpi-lgpio`
 
 run `python motion.py` to execute picture/video recording
+
+needed to run:
+`pip install python-dotenv`

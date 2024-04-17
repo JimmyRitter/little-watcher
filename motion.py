@@ -3,14 +3,17 @@ import time
 import asyncio
 import datetime
 import RPi.GPIO as GPIO
+import logging
+import jsonpickle
+from dotenv import load_dotenv
 from picamera2 import Picamera2
+from azure.iot.device import Message
 from picamera2.encoders import H264Encoder
 from azure.identity import AzureCliCredential
 from azure.storage.blob import BlobServiceClient
 from azure.iot.device.aio import IoTHubDeviceClient
-from azure.iot.device import Message
 
-# import logging
+load_dotenv()  # This line brings all environment variables from .env into os.environ
 
 # # Enable logging at the DEBUG level
 # logger = logging.getLogger('azure')
@@ -25,30 +28,21 @@ MOTION_SENSOR_PIN = 37  # GPIO26 when using GPIO.BOARD numbering scheme
 LED_PIN = 13 # Where LED is connected on breadboard
 MOTION_SECONDS_TO_RECORD = 10 # How much seconds of motion should be the limit to start recording (the less, the more sensitive it is)
 
-motion_times = []
-
 # GPIO Setup
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(MOTION_SENSOR_PIN, GPIO.IN)
-
-
 GPIO.setup(LED_PIN, GPIO.OUT)
 GPIO.output(LED_PIN, False)
 
-picam2 = Picamera2()
+motion_times = [] # how many times the PIR sensor detection detected movement 
+account_url = os.environ['AZURE_STORAGE_ACCOUNT_URL']
+conn_str = os.environ['DEVICE_CONNECTION_STRING']
 
+picam2 = Picamera2() # Camera setup
+default_credential = AzureCliCredential() # How it will authenticate
+blob_service_client = BlobServiceClient(account_url, credential=default_credential)# Create the BlobServiceClient object
+device_client = IoTHubDeviceClient.create_from_connection_string(conn_str) # Create instance of the device client using the authentication provider
 
-account_url = "https://jimmyiotstorageaccount.blob.core.windows.net"
-default_credential = AzureCliCredential()
-
-# Create the BlobServiceClient object
-blob_service_client = BlobServiceClient(account_url, credential=default_credential)
-
-# Fetch the connection string from an environment variable
-conn_str = ""
-
-# Create instance of the device client using the authentication provider
-device_client = IoTHubDeviceClient.create_from_connection_string(conn_str)
 
 # prepare folder to upload recorded midias
 midia_path = "./midia"
@@ -80,7 +74,6 @@ def setup_video():
     picam2.configure(video_config)
 
 def take_picture():
-    """Takes a picture and saves it with a timestamp."""
     timestamp = int(time.time())
     filename = f"picture_{timestamp}.jpg"
     picam2.capture_file(f"./midia/{filename}")
@@ -95,7 +88,7 @@ def record_video():
     output = f"./midia/{filename}"
     GPIO.output(LED_PIN, True)
     picam2.start_recording(encoder, output)
-    time.sleep(20)
+    time.sleep(5)
     picam2.stop_recording()
     GPIO.output(LED_PIN, False)
     print("video recorded")
@@ -103,13 +96,17 @@ def record_video():
     print("Sending message...")
     payload = {
         "midia-name": filename,
-        "recorded-at": datetime.datetime.now()
+        "recorded-at": datetime.datetime.now().strftime('%m/%d/%Y-%H:%M:%S')
     }
-    device_client.send_message(Message(data=payload))
+    asyncio.run(send_succesful_message_to_iot_hub(jsonpickle.dumps(payload)))
+    
     print("")
     print("Message successfully sent!")
     
-    # upload_midia(filename)
+    upload_midia(filename)
+
+async def send_succesful_message_to_iot_hub(payload):
+    await device_client.send_message(Message(data=payload))
 
 def should_start_midia_capture():
     time_limit = datetime.datetime.now() - datetime.timedelta(seconds=MOTION_SECONDS_TO_RECORD)
@@ -118,6 +115,7 @@ def should_start_midia_capture():
     return len(new_list) >= minium_movements_detection
 
 def detect_motion(channel):
+
     """Callback function to detect motion."""
     if GPIO.input(channel):
         print("Motion detected!")
@@ -138,19 +136,19 @@ async def main():
     time.sleep(5)  # Calibration time for the sensor
     print("Started....")
 
+    # setup if it's picture or video, as its not ready to work both at same time
     # setup_picture()
     setup_video()
 
     # Setup event detection
     GPIO.add_event_detect(MOTION_SENSOR_PIN, GPIO.BOTH, callback=detect_motion, bouncetime=200)
-   
     
     try:
         # Connect the device client.
         await device_client.connect()
 
         while True:
-            time.sleep(0.1)  # Keep program running
+            time.sleep(0.01)  # Keep program running
 
     except RuntimeError as e:
         print(f"Error setting up GPIO: {e}")

@@ -1,9 +1,13 @@
+import os
 from azure.eventhub import EventHubConsumerClient
+from dotenv import load_dotenv
+
+load_dotenv()  # This line brings all environment variables from .env into os.environ
 
 # Replace the following values with your Azure Event Hub settings
-connection_str = ''
+connection_str = os.environ['DEVICE_EVENT_HUB_CONNECTION_STRING']
 consumer_group = '$Default'
-eventhub_name = ''
+eventhub_name = os.environ['EVENT_HUB_NAME']
 
 def on_event(partition_context, event):
     # Print the event data content
