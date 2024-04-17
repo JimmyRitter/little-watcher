@@ -1,11 +1,14 @@
 import os
 import time
+import asyncio
 import datetime
 import RPi.GPIO as GPIO
 from picamera2 import Picamera2
 from picamera2.encoders import H264Encoder
 from azure.identity import AzureCliCredential
 from azure.storage.blob import BlobServiceClient
+from azure.iot.device.aio import IoTHubDeviceClient
+from azure.iot.device import Message
 
 # import logging
 
@@ -38,9 +41,13 @@ picam2 = Picamera2()
 account_url = "https://jimmyiotstorageaccount.blob.core.windows.net"
 default_credential = AzureCliCredential()
 
-
-# # Create the BlobServiceClient object
+# Create the BlobServiceClient object
 blob_service_client = BlobServiceClient(account_url, credential=default_credential)
+
+# Fetch the connection string from an environment variable
+
+# Create instance of the device client using the authentication provider
+device_client = IoTHubDeviceClient.create_from_connection_string(conn_str)
 
 # prepare folder to upload recorded midias
 midia_path = "./midia"
@@ -49,11 +56,6 @@ if not os.path.exists(midia_path):
 
 def upload_midia(file_name):
     """Save media to azure"""
-    
-    # # Create a local directory to hold blob data
-    # local_path = "./midia"
-    # if not os.path.exists(local_path):
-    #     os.mkdir(local_path)
         
     full_path = os.path.join("./midia", file_name)
 
@@ -96,6 +98,16 @@ def record_video():
     picam2.stop_recording()
     GPIO.output(LED_PIN, False)
     print("video recorded")
+    print("")
+    print("Sending message...")
+    payload = {
+        "midia-name": filename,
+        "recorded-at": datetime.datetime.now()
+    }
+    device_client.send_message(Message(data=payload))
+    print("")
+    print("Message successfully sent!")
+    
     # upload_midia(filename)
 
 def should_start_midia_capture():
@@ -119,7 +131,7 @@ def detect_motion(channel):
         else:
             print("not enough movement to start recording")    
 
-def main(): 
+async def main(): 
     """Main program loop."""
     print("Calibrating...")
     time.sleep(5)  # Calibration time for the sensor
@@ -130,10 +142,15 @@ def main():
 
     # Setup event detection
     GPIO.add_event_detect(MOTION_SENSOR_PIN, GPIO.BOTH, callback=detect_motion, bouncetime=200)
-
+   
+    
     try:
+        # Connect the device client.
+        await device_client.connect()
+
         while True:
             time.sleep(0.1)  # Keep program running
+
     except RuntimeError as e:
         print(f"Error setting up GPIO: {e}")
     except KeyboardInterrupt:
@@ -142,6 +159,7 @@ def main():
         GPIO.cleanup()  # Clean up GPIO on CTRL+C exit
         picam2.stop()  # Stop the camera
         print('GPIO and camera cleanup done')
+        await device_client.shutdown()
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
