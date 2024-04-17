@@ -9,3 +9,4 @@ run `python motion.py` to execute picture/video recording
 
 needed to run:
 `pip install python-dotenv`
+`pip install azure-communication-email`
