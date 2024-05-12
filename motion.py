@@ -188,7 +188,7 @@ def send_email(sas_token, motion_date_time):
 async def main():
     """Main program loop."""
     print("Calibrating...")
-    time.sleep(20)  # Calibration time for the sensor
+    time.sleep(3)  # Calibration time for the sensor
     print("Started....")
 
     # setup if it's picture or video, as its not ready to work both at same time
