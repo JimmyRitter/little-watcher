@@ -32,8 +32,6 @@ GPIO.setup(LED_PIN, GPIO.OUT)
 GPIO.output(LED_PIN, False)
 
 motion_times = []  # how many times the PIR sensor detection detected movement
-account_url = os.environ["AZURE_STORAGE_ACCOUNT_URL"]
-conn_str = os.environ["DEVICE_CONNECTION_STRING"]
 
 picam2 = Picamera2()  # Camera setup
 
