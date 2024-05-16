@@ -28,10 +28,10 @@ resource "aws_ses_email_identity" "recipient_email" {
   email = local.envs["AWS_SES_EMAIL_RECIPIENT_ADDRESS"]
 }
 
-# # Kinesis Video Stream
-# resource "aws_kinesis_video_stream" "video_stream" {
-#   name                    = "kinesis-video-stream"
-#   data_retention_in_hours = 1
-#   device_name             = "raspberry-pi"
-#   # media_type              = "video/h264"
+# Kinesis Video Stream
+resource "aws_kinesis_video_stream" "video_stream" {
+  name                    = "kinesis-video-stream"
+  data_retention_in_hours = 1
+  device_name             = "raspberry-pi"
+  # media_type              = "video/h264"
 }
