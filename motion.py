@@ -71,8 +71,11 @@ def setup_picture():
 
 
 def setup_video():
-    video_config = picam2.create_video_configuration(
-        main={"format": "XRGB8888", "size": (1280, 720)}
+    video_config = picam2.create_preview_configuration(
+        main={
+            "size": (1100, 800)
+            # "format": "XRGB8888"
+        } 
     )
     picam2.configure(video_config)
 
@@ -99,10 +102,6 @@ def record_video():
     GPIO.output(LED_PIN, False)
     print("Finished recording video")
     recorded_at = datetime.now().strftime("%m/%d/%Y-%H:%M:%S")
-    payload = {
-        "midia-name": filename,
-        "recorded-at": recorded_at,
-    }
     
     # How to call async function from a sync parent function
     # asyncio.run(send_succesful_message_to_iot_hub(jsonpickle.dumps(payload)))
