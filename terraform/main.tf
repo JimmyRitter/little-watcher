@@ -16,11 +16,6 @@ provider "aws" {
 resource "aws_s3_bucket" "recordings_bucket" {
   bucket = local.envs["AWS_S3_RECORDINGS_BUCKET"]
   force_destroy = true
-
-  tags = {
-    Name        = "My bucket"
-    Environment = "Dev"
-  }
 }
 
 resource "aws_ses_email_identity" "sender_email" {
